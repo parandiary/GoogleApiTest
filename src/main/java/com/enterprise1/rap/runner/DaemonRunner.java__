@@ -1,0 +1,77 @@
+package com.enterprise1.rms.trkmst.runner;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import com.enterprise1.rms.trkmst.executor.DaemonExecutor;
+import com.enterprise1.rms.trkmst.executor.DaemonStatusExecutor;
+
+@Component
+@Order(4)
+public class DaemonRunner implements ApplicationRunner {
+
+	private final Logger log = LoggerFactory.getLogger(DaemonRunner.class);
+	public static boolean endFlag = false;
+
+	@Value("${tracker-master.daemon.pool-size}")
+	private int poolSize;
+
+	@Value("${tracker-master.daemon.tracking-fuse}")
+	private boolean trackingFuse;
+
+	@Value("${tracker-master.daemon.tracking-apigee}")
+	private boolean trackingApigee;
+
+	@Autowired
+	@Qualifier("fuseDaemonExecutor")
+	private DaemonExecutor fuseDaemonExecutor;
+
+	@Autowired
+	@Qualifier("apigeeDaemonExecutor")
+	private DaemonExecutor apigeeDaemonExecutor;
+
+	@Autowired
+	private DaemonStatusExecutor stautsExecutor;
+
+	@Override
+	public void run(ApplicationArguments args) throws Exception {
+
+		int daemonNo = 0;
+
+		log.info("==========================================================");
+		log.info("Start FUSE Tracking [ COUNT : " + poolSize + " ]");
+		// 데몬 Thread Trigger - FUSE
+		if(trackingFuse) {
+			for(int i = 1 ; i <= poolSize && i < 50 ; i++) {
+				daemonNo++;
+				log.info("Tracking Fuse Thread #{} start!", daemonNo);
+				fuseDaemonExecutor.run(daemonNo);
+	    	}
+		}
+		log.info("-----------------------------------------------------------");
+		log.info("Start APIGEE Tracking [ COUNT : " + poolSize + " ]");
+		// Apigee Tracking
+		if(trackingApigee) {
+			for(int i = 1 ; i <= poolSize && i < 50 ; i++) {
+				daemonNo++;
+				log.info("Tracking Apigee Thread #{} start!", daemonNo);
+				apigeeDaemonExecutor.run(daemonNo);
+	    	}
+		}
+
+		stautsExecutor.run();
+		log.info("Ready Tracking Task Executor [ Total Thread Count : " + daemonNo + " ]");
+		log.info("==========================================================");
+
+
+	}
+
+
+}
